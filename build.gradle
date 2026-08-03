@@ -1,10 +1,10 @@
 plugins {
 	id 'java-library'
-	id 'io.spring.dependency-management' version '1.1.7'
+	id 'maven-publish'
 }
 
 group = 'com.github.sep-es-br'
-version = '1.0.0'
+version = '1.1.0'
 
 sourceCompatibility = '1.8'
 targetCompatibility = '1.8'
@@ -20,7 +20,22 @@ dependencies {
     implementation 'org.springframework.boot:spring-boot-starter'
 
 
-    implementation 'com.github.sep-es-br:pmo-core-organization-parser:1.0.5'
+    implementation 'com.github.sep-es-br:pmo-core-organization-parser:1.1.1'
 
+    testImplementation 'org.junit.jupiter:junit-jupiter:5.10.3'
+
+}
+
+test {
+    useJUnitPlatform()
+}
+
+publishing {
+    publications {
+        mavenJava(MavenPublication) {
+            from components.java
+            artifactId = 'organization-parser-goves'
+        }
+    }
 }
 
