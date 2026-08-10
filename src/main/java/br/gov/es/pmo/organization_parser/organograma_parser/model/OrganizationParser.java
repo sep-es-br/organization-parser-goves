@@ -9,8 +9,12 @@ import net.minidev.json.parser.JSONParser;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 
 import org.springframework.stereotype.Component;
+import org.springframework.web.reactive.function.client.WebClientResponseException;
 
 @Component("org")
 public class OrganizationParser
@@ -28,6 +32,9 @@ public class OrganizationParser
 
     private final ApiClient apiClient =
         new ApiClient("https://api.organograma.es.gov.br");
+
+    private final ConcurrentMap<String, Optional<String>> abbreviationByUnit =
+        new ConcurrentHashMap<>();
 
     public List<OrganizationDto> getOrganizations(String token) {
 
@@ -75,6 +82,52 @@ public class OrganizationParser
             throw new RuntimeException(
                 "Erro ao parsear organizações",
                 e
+            );
+        }
+    }
+
+    @Override
+    public Optional<String> findAbbreviationByUnit(
+        final String unitId,
+        final String token
+    ) {
+        return abbreviationByUnit.computeIfAbsent(
+            unitId,
+            id -> loadAbbreviationByUnit(id, token)
+        );
+    }
+
+    @Override
+    public void clearCache() {
+        abbreviationByUnit.clear();
+    }
+
+    private Optional<String> loadAbbreviationByUnit(
+        final String unitId,
+        final String token
+    ) {
+        try {
+            final String json = apiClient
+                .doGetRequest("/unidades/" + unitId, token)
+                .block();
+            final JSONObject unit = (JSONObject) new JSONParser(
+                JSONParser.DEFAULT_PERMISSIVE_MODE
+            ).parse(json);
+            final JSONObject organization =
+                (JSONObject) unit.get("organizacao");
+            if (organization == null) {
+                return Optional.empty();
+            }
+            final String abbreviation = (String) organization.get(SIGLA);
+            return abbreviation == null || abbreviation.trim().isEmpty()
+                ? Optional.empty()
+                : Optional.of(abbreviation);
+        } catch (final WebClientResponseException.NotFound exception) {
+            return Optional.empty();
+        } catch (final Exception exception) {
+            throw new RuntimeException(
+                "Erro ao consultar unidade no Organograma",
+                exception
             );
         }
     }
